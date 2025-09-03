@@ -1,0 +1,41 @@
+{
+    "name": "pikulsky/whatsapp-streams",
+    "description": "Encrypting and decrypting decorator streams for WhatsApp.",
+    "keywords": ["psr", "psr-7", "stream", "encryption", "whatsapp"],
+    "type": "library",
+    "license": "Apache-2.0",
+    "require": {
+        "php": "^8.2",
+        "ext-openssl": "*",
+        "psr/http-message": "^2.0",
+        "guzzlehttp/psr7": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pikulsky\\EncryptedStreams\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pikulsky\\EncryptedStreams\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs": "phpcs",
+        "stan": "phpstan analyse --level 6 src tests",
+        "all": "composer test && composer cs"
+    },
+    "authors": [
+        {
+            "name": "Valeriy Pikulskiy",
+            "email": "pikulsky@gmail.com",
+            "homepage": "https://github.com/pikulsky"
+        }
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "squizlabs/php_codesniffer": "^3.13",
+        "phpstan/phpstan": "^2.1"
+    }
+}
