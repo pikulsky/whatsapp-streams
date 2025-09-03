@@ -1,8 +1,16 @@
 # PSR-7 Encrypting/Decrypting Decorator Streams for WhatsApp
 
-This package provides PSR-7 compatible stream decorators that allow 
+This package provides PSR-7 compatible stream decorators that allow
 incremental encryption and decryption of streams of arbitrary size.  
 It also supports creating sidecar streams.
+
+## Installation
+
+Install the package via Composer:
+
+```bash
+composer require pikulsky/whatsapp-streams
+```
 
 ## Usage
 
@@ -73,7 +81,7 @@ $sidecarContent = (string) $sidecarStream;
 
 ## Cipher & Key Types
 
-A cipher is required for encryption and decryption. The library provides specialized key types and ciphers 
+A cipher is required for encryption and decryption. The library provides specialized key types and ciphers
 for different media types.
 
 ### Available Key Types
