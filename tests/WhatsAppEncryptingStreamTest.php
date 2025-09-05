@@ -27,13 +27,18 @@ class WhatsAppEncryptingStreamTest extends TestCase
         string $cipherClass
     ): void {
         $key = file_get_contents($keyPath);
+        $expectedEncryptedContent = file_get_contents($encryptedPath);
         $originalStream = Utils::streamFor(fopen($originalPath, 'r'));
-        $expectedEncryptedStream = Utils::streamFor(fopen($encryptedPath, 'r'));
 
         $cipher = new $cipherClass($key);
         $encryptingStream = new WhatsAppEncryptingStream($originalStream, $cipher);
 
-        $this->assertSame((string)$expectedEncryptedStream, (string)$encryptingStream);
+        // Act
+        $encryptedContent = (string)$encryptingStream;
+
+        // Assert
+        $this->assertEquals(strlen($expectedEncryptedContent), strlen($encryptedContent));
+        $this->assertSame(bin2hex($expectedEncryptedContent), bin2hex($encryptedContent));
     }
 
     /**
@@ -87,8 +92,10 @@ class WhatsAppEncryptingStreamTest extends TestCase
     {
         $stream = Utils::streamFor('test data');
 
-        $cipherMock = $this->createMock(WhatsAppCipherInterface::class);
-        $encryptingStream = new WhatsAppEncryptingStream($stream, $cipherMock);
+        $cipherStub = $this->createStub(WhatsAppCipherInterface::class);
+        $cipherStub->method('getIV')->willReturn(random_bytes(16));
+        $cipherStub->method('getMacKey')->willReturn(random_bytes(32));
+        $encryptingStream = new WhatsAppEncryptingStream($stream, $cipherStub);
 
         $this->assertFalse($encryptingStream->isWritable());
     }
@@ -97,8 +104,11 @@ class WhatsAppEncryptingStreamTest extends TestCase
     {
         $stream = Utils::streamFor('test data');
 
-        $cipherMock = $this->createMock(WhatsAppCipherInterface::class);
-        $encryptingStream = new WhatsAppEncryptingStream($stream, $cipherMock);
+        $cipherStub = $this->createStub(WhatsAppCipherInterface::class);
+        $cipherStub->method('getIV')->willReturn(random_bytes(16));
+        $cipherStub->method('getMacKey')->willReturn(random_bytes(32));
+
+        $encryptingStream = new WhatsAppEncryptingStream($stream, $cipherStub);
 
         $this->expectException(RuntimeException::class);
 

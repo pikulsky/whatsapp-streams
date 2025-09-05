@@ -20,28 +20,29 @@ class WhatsAppSidecarStreamTest extends TestCase
     {
         // Arrange
         $key = file_get_contents(self::PATH_VIDEO_KEY);
-        $sidecarExpected = file_get_contents(self::PATH_VIDEO_SIDECAR);
+        $sidecarExpectedContent = file_get_contents(self::PATH_VIDEO_SIDECAR);
 
         $plainTextStream = Utils::streamFor(fopen(self::PATH_VIDEO_ORIGINAL, 'r'));
-        $encrypted = Utils::streamFor(fopen(self::PATH_VIDEO_ENCRYPTED, 'r'));
+        $expectedEncryptedContent = file_get_contents(self::PATH_VIDEO_ENCRYPTED);
         $sidecarStream = Utils::streamFor('');
 
         $videoCipher = new WhatsAppVideoCipher($key);
 
         $encodingStream = new WhatsAppEncryptingStream($plainTextStream, $videoCipher);
-        $encriptedStream = new WhatsAppSidecarStream($encodingStream, $videoCipher, $sidecarStream);
+        $encryptedStream = new WhatsAppSidecarStream($encodingStream, $videoCipher, $sidecarStream);
 
         // Act
-        $encryptedStreamContent = (string) $encriptedStream;
+        $encryptedStreamContent = (string) $encryptedStream;
         $sidecarContent = (string) $sidecarStream;
 
-        // Assert
+        // Assert encrypted stream content is as expected
         $this->assertNotEmpty($encryptedStreamContent);
-        $this->assertSame((string) $encrypted, $encryptedStreamContent);
+        $this->assertEquals(strlen($expectedEncryptedContent), strlen($encryptedStreamContent));
+        $this->assertSame($expectedEncryptedContent, $encryptedStreamContent);
 
-        $this->assertEquals(strlen($sidecarExpected), strlen($sidecarContent));
-
-        $this->assertSame(bin2hex($sidecarExpected), bin2hex($sidecarContent));
+        // Assert sidecar content is as expected
+        $this->assertEquals(strlen($sidecarExpectedContent), strlen($sidecarContent));
+        $this->assertSame(bin2hex($sidecarExpectedContent), bin2hex($sidecarContent));
     }
 
     public function testThrowsExceptionIfInputStreamNotReadable(): void

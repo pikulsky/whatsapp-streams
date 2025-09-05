@@ -4,11 +4,18 @@
     "keywords": ["psr", "psr-7", "stream", "encryption", "whatsapp"],
     "type": "library",
     "license": "Apache-2.0",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/pikulsky/php-encrypted-streams"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "ext-openssl": "*",
         "psr/http-message": "^2.0",
-        "guzzlehttp/psr7": "^2.0"
+        "guzzlehttp/psr7": "^2.0",
+        "jsq/psr7-stream-encryption": "dev-pre-init-hash-stream as 2.0.0"
     },
     "autoload": {
         "psr-4": {

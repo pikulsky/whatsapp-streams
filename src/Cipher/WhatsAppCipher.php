@@ -3,13 +3,11 @@
 namespace Pikulsky\EncryptedStreams\Cipher;
 
 use Pikulsky\EncryptedStreams\Key\MediaTypeKeyInterface;
-use RuntimeException;
 
 /**
  * Implements {@see WhatsAppCipherInterface} for WhatsApp media payloads.
  *
- * This class performs AES-256-CBC encryption/decryption of media data,
- * computes HMAC-based sidecars for verification, and manages key material
+ * This class computes HMAC-based sidecars for verification, and manages key material
  * using {@see MediaTypeKeyInterface}.
  *
  * Internally, the media key is expanded via HKDF and split into IV, cipher key,
@@ -19,7 +17,6 @@ class WhatsAppCipher implements WhatsAppCipherInterface
 {
     protected const HKDF_ALGO = 'sha256';
     protected const HKDF_SIZE = 112;
-    protected const CIPHER_ALGO = 'aes-256-cbc';
     protected const HMAC_ALGO = 'sha256';
 
     private string $cipherKey;
@@ -33,11 +30,14 @@ class WhatsAppCipher implements WhatsAppCipherInterface
     }
 
     /**
-     * Returns the sidecar value for the given payload
+     * Generates a sidecar (verification metadata) for the given payload.
      *
-     * @param string $payload
-     * @param string $iv IV: if it's empty, use IV from the mediaKey
-     * @return string
+     * A sidecar typically contains metadata or verification data needed
+     * for decryption or integrity checks.
+     *
+     * @param string $payload Media data (plaintext or ciphertext).
+     * @param string $iv Initialization vector. If empty, the IV from the media key is used.
+     * @return string Sidecar data for integrity verification.
      */
     public function sidecar(string $payload, string $iv): string
     {
@@ -54,72 +54,33 @@ class WhatsAppCipher implements WhatsAppCipherInterface
     }
 
     /**
-     * Encrypts the given plain text
+     * Returns the AES key used for encryption and decryption.
      *
-     * @param string $plainText
-     * @return string
+     * @return string Binary key material.
      */
-    public function encrypt(string $plainText): string
+    public function getKey(): string
     {
-        // Encrypt data
-        $enc = openssl_encrypt(
-            $plainText,
-            self::CIPHER_ALGO,
-            $this->cipherKey,
-            OPENSSL_RAW_DATA,
-            $this->iv
-        );
-
-        if ($enc === false) {
-            throw new RuntimeException("Encryption failed");
-        }
-
-        // Sign `iv + enc` with `macKey` using HMAC
-        $hmac = hash_hmac(self::HMAC_ALGO, $this->iv . $enc, $this->macKey, true);
-        // Store the first 10 bytes of the hash as `mac`.
-        $mac  = substr($hmac, 0, 10);
-
-        // Append `mac` to the `enc` to obtain the result
-        $result = $enc . $mac;
-
-        return $result;
+        return $this->cipherKey;
     }
 
     /**
-     * Decrypts the given cipher text
+     * Returns the initialization vector (IV) used for encryption.
      *
-     * @param string $cipherText
-     * @return string
+     * @return string Binary IV value.
      */
-    public function decrypt(string $cipherText): string
+    public function getIV(): string
     {
-        // Split to `file` and `mac`
-        $file = substr($cipherText, 0, -10);
-        $mac  = substr($cipherText, -10);
+        return $this->iv;
+    }
 
-        // Validate HMAC
-        $hmac = hash_hmac(self::HMAC_ALGO, $this->iv . $file, $this->macKey, true);
-        // Note: `mac` is truncated to 10 bytes, so we need to truncate `hmac` as well
-        $calcMac = substr($hmac, 0, 10);
-
-        if (!hash_equals($calcMac, $mac)) {
-            throw new RuntimeException("MAC validation failed – file may be corrupted or tampered");
-        }
-
-        // Decrypt `file`
-        $decrypted = openssl_decrypt(
-            $file,
-            self::CIPHER_ALGO,
-            $this->cipherKey,
-            OPENSSL_RAW_DATA,
-            $this->iv
-        );
-
-        if ($decrypted === false) {
-            throw new RuntimeException("Decryption failed");
-        }
-
-        return $decrypted;
+    /**
+     * Returns the key used for message authentication (HMAC-SHA256).
+     *
+     * @return string Binary MAC key.
+     */
+    public function getMacKey(): string
+    {
+        return $this->macKey;
     }
 
     /**

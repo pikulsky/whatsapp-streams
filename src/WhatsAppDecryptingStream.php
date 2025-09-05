@@ -2,21 +2,26 @@
 
 namespace Pikulsky\EncryptedStreams;
 
-use GuzzleHttp\Psr7\StreamDecoratorTrait;
 use InvalidArgumentException;
+use Jsq\EncryptionStreams\AesDecryptingStream;
+use Jsq\EncryptionStreams\Cbc;
+use Jsq\EncryptionStreams\HashingStream;
 use Pikulsky\EncryptedStreams\Cipher\WhatsAppCipherInterface;
+use Pikulsky\EncryptedStreams\Stream\WhatsAppFinalizeStream;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
 /**
  * Stream wrapper that decrypts WhatsApp media data on-the-fly.
  *
- * This class decorates an existing {@see StreamInterface} and uses a
+ * This class decorates an encrypted {@see StreamInterface} and uses a
  * {@see WhatsAppCipherInterface} implementation to automatically decrypt
- * any data read from the stream.
+ * any data read from the stream. Integrity is verified via HMAC-SHA256,
+ * where only the first 10 bytes of the hash are used as the MAC.
  *
- * Note: Decryption happens per chunk, so large streams can be processed
- * incrementally without loading the entire content into memory.
+ * Decryption and MAC verification are performed per chunk, so large
+ * streams can be processed incrementally without loading the entire
+ * content into memory.
  *
  * Example usage:
  * ```php
@@ -24,59 +29,76 @@ use RuntimeException;
  * $data = $decryptedStream->read(1024); // reads and decrypts 1024 bytes
  * ```
  */
-
-class WhatsAppDecryptingStream implements StreamInterface
+class WhatsAppDecryptingStream extends AesDecryptingStream implements StreamInterface
 {
-    use StreamDecoratorTrait;
+    private const MAC_SIZE = 10;
+
+    private WhatsAppFinalizeStream $finalizer;
 
     /**
-     * @param StreamInterface $stream note: parameter name should be the same as in StreamDecoratorTrait
-     * @param WhatsAppCipherInterface $cipher
+     * Creates a decrypting stream wrapper.
+     *
+     * @param StreamInterface $cipherStream Encrypted WhatsApp media stream (must be readable).
+     * @param WhatsAppCipherInterface $cipher Cipher providing encryption key, IV and MAC key.
+     *
+     * @throws InvalidArgumentException If the provided stream is not readable.
      */
     public function __construct(
-        private readonly StreamInterface $stream,
-        private readonly WhatsAppCipherInterface $cipher,
+        StreamInterface $cipherStream,
+        WhatsAppCipherInterface $cipher,
     ) {
-        if (!$stream->isReadable()) {
+        if (!$cipherStream->isReadable()) {
             throw new InvalidArgumentException('This stream must be readable');
         }
+
+        $key = $cipher->getKey();
+        $macKey = $cipher->getMacKey();
+        $iv = $cipher->getIV();
+        $cipherMethod = new Cbc($iv);
+
+        // Finalizer splits the last chunk into encrypted data and MAC.
+        $this->finalizer = new WhatsAppFinalizeStream($cipherStream);
+
+        // Computes HMAC-SHA256 while reading, then calls validateMac() at the end.
+        $hashStream = new HashingStream(
+            $this->finalizer,
+            $iv,
+            $macKey,
+            [$this, 'validateMac']
+        );
+
+        parent::__construct($hashStream, $key, $cipherMethod);
     }
 
     /**
-     * Reads from the underlying stream and decrypts the data.
+     * Callback executed by {@see HashingStream} to verify the MAC.
      *
-     * The decryption happens per chunk, allowing large streams to be processed
-     * incrementally without loading the entire content into memory.
-     *
-     * @param int $length Number of bytes to read
-     * @return string Decrypted data
+     * @param string $hmac Full 32-byte HMAC-SHA256 calculated from stream chunks.
+     * @return void
+     * @throws RuntimeException If the MAC from the stream does not match the calculated value.
      */
-    public function read(int $length): string
+    public function validateMac(string $hmac): void
     {
-        $read = $this->stream->read($length);
+        // Take the first 10 bytes of the HMAC as the expected MAC.
+        $macCalculated  = substr($hmac, 0, self::MAC_SIZE);
 
-        if (strlen($read) > 0) {
-            return $this->cipher->decrypt($read);
+        // Extract the MAC from the end of the encrypted stream.
+        $macFromFile = $this->finalizer->getMac();
+
+        // Order of parameters is important:
+        // $macFromFile - expected (from file), known correct
+        // $macCalculated - computed during streaming
+        if (!hash_equals($macFromFile, $macCalculated)) {
+            throw new RuntimeException("MAC verification failed");
         }
-
-        return $read;
-    }
-
-    /**
-     * This stream is read-only.
-     *
-     * @return bool
-     */
-    public function isWritable(): bool
-    {
-        return false;
     }
 
     /**
      * Writing is not supported for this stream.
      *
-     * @param string $string
-     * @throws RuntimeException
+     * @param string $string Ignored data.
+     * @return int
+     * @throws RuntimeException Always thrown, because this stream is read-only.
      */
     public function write($string): int
     {
