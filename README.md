@@ -147,17 +147,19 @@ $encrypted = new WhatsAppEncryptingStream($original, $videoCipher);
 - [guzzlehttp/psr7](https://github.com/guzzle/psr7) - PSR-7 stream utilities
 - [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) - stream decorators for encryption, decryption and hashing
 
+Note: the library [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) is forked to [pikulsky/php-encrypted-streams](https://github.com/pikulsky/php-encrypted-streams/tree/pre-init-hash-stream) to add support for PHP 8.2 and improve HashingStream to pre-initialize the hash context with IV.
+
 ### How it works
 
 WhatsAppEncryptingStream uses decorators from [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) library:
 - [AesEncryptingStream](https://github.com/jeskew/php-encrypted-streams/blob/master/src/AesEncryptingStream.php) for encryption
-- [HashingStream](https://github.com/jeskew/php-encrypted-streams/blob/master/src/AesDecryptingStream.php) - for generating the integrity hash of the encrypted data
+- [HashingStream](https://github.com/pikulsky/php-encrypted-streams/blob/pre-init-hash-stream/src/HashingStream.php) - for generating the integrity hash of the encrypted data
 
 ![Encrypting Process](doc/encrypting.png)
 
 WhatsAppDecryptingStream uses WhatsAppFinalizeStream decorator to split the encrypted data into the original data and the integrity hash,
 and also it uses decorators from [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) library:
 - [AesDecryptingStream](https://github.com/jeskew/php-encrypted-streams/blob/master/src/AesDecryptingStream.php) for decryption
-- [HashingStream](https://github.com/jeskew/php-encrypted-streams/blob/master/src/HashingStream.php) - for validating the integrity of the decrypted data
+- [HashingStream](https://github.com/pikulsky/php-encrypted-streams/blob/pre-init-hash-stream/src/HashingStream.php) - for validating the integrity of the decrypted data
 
 ![Decrypting Process](doc/decrypting.png)
