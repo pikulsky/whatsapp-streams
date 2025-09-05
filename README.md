@@ -145,7 +145,7 @@ $encrypted = new WhatsAppEncryptingStream($original, $videoCipher);
 - PHP 8.2
 - [psr/http-message](https://github.com/php-fig/http-message) - PSR-7 stream interface
 - [guzzlehttp/psr7](https://github.com/guzzle/psr7) - PSR-7 stream utilities
-- [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) - stream decorators, encryption and decryption, hasing
+- [jsq/psr7-stream-encryption](https://github.com/jeskew/php-encrypted-streams) - stream decorators for encryption, decryption and hashing
 
 ### How it works
 
