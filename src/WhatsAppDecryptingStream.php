@@ -2,6 +2,7 @@
 
 namespace Pikulsky\EncryptedStreams;
 
+use GuzzleHttp\Psr7\StreamDecoratorTrait;
 use InvalidArgumentException;
 use Jsq\EncryptionStreams\AesDecryptingStream;
 use Jsq\EncryptionStreams\Cbc;
@@ -29,11 +30,15 @@ use RuntimeException;
  * $data = $decryptedStream->read(1024); // reads and decrypts 1024 bytes
  * ```
  */
-class WhatsAppDecryptingStream extends AesDecryptingStream implements StreamInterface
+class WhatsAppDecryptingStream implements StreamInterface
 {
+    use StreamDecoratorTrait;
+
     private const MAC_SIZE = 10;
 
     private WhatsAppFinalizeStream $finalizer;
+
+    private AesDecryptingStream $stream;
 
     /**
      * Creates a decrypting stream wrapper.
@@ -67,7 +72,7 @@ class WhatsAppDecryptingStream extends AesDecryptingStream implements StreamInte
             [$this, 'validateMac']
         );
 
-        parent::__construct($hashStream, $key, $cipherMethod);
+        $this->stream = new AesDecryptingStream($hashStream, $key, $cipherMethod);
     }
 
     /**
@@ -79,13 +84,13 @@ class WhatsAppDecryptingStream extends AesDecryptingStream implements StreamInte
      */
     public function validateMac(string $hmac): void
     {
-        // Take the first 10 bytes of the HMAC as the expected MAC.
+        // Take the first 10 bytes of the HMAC
         $macCalculated  = substr($hmac, 0, self::MAC_SIZE);
 
         // Extract the MAC from the end of the encrypted stream.
         $macFromFile = $this->finalizer->getMac();
 
-        // Order of parameters is important:
+        // The order of parameters is important:
         // $macFromFile - expected (from file), known correct
         // $macCalculated - computed during streaming
         if (!hash_equals($macFromFile, $macCalculated)) {

@@ -2,11 +2,13 @@
 
 namespace Pikulsky\EncryptedStreams;
 
+use GuzzleHttp\Psr7\StreamDecoratorTrait;
 use InvalidArgumentException;
 use Jsq\EncryptionStreams\AesEncryptingStream;
 use Jsq\EncryptionStreams\Cbc;
 use Jsq\EncryptionStreams\HashingStream;
 use Pikulsky\EncryptedStreams\Cipher\WhatsAppCipherInterface;
+use Pikulsky\EncryptedStreams\Stream\WhatsAppStream;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
@@ -28,9 +30,13 @@ use RuntimeException;
  * $data = $encryptingStream->read(1024); // reads and encrypts 1024 bytes
  * ```
  */
-class WhatsAppEncryptingStream extends HashingStream implements StreamInterface
+class WhatsAppEncryptingStream implements StreamInterface
 {
+    use StreamDecoratorTrait;
+
     private const MAC_SIZE = 10;
+
+    private HashingStream $stream;
 
     /**
      * Creates an encrypting stream wrapper.
@@ -56,7 +62,8 @@ class WhatsAppEncryptingStream extends HashingStream implements StreamInterface
         // wrap the plain text stream in an AES stream to encrypt it
         $encodingStream = new AesEncryptingStream($plainTextStream, $key, $cipherMethod);
 
-        parent::__construct($encodingStream, $iv, $macKey);
+        // wrap the encoded stream in a hashing stream to calculate the MAC
+        $this->stream = new HashingStream($encodingStream, $iv, $macKey);
     }
 
     /**
@@ -70,11 +77,11 @@ class WhatsAppEncryptingStream extends HashingStream implements StreamInterface
      */
     public function read($length): string
     {
-        $read = parent::read($length);
+        $read = $this->stream->read($length);
 
         if ($this->eof()) {
             // Get the calculated final HMAC
-            $hmac = $this->getHash();
+            $hmac = (string) $this->stream->getHash();
             // Append the first 10 bytes of the HMAC as MAC
             $mac  = substr($hmac, 0, self::MAC_SIZE);
             $read .= $mac;
