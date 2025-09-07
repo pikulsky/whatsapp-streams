@@ -8,7 +8,6 @@ use Jsq\EncryptionStreams\AesEncryptingStream;
 use Jsq\EncryptionStreams\Cbc;
 use Jsq\EncryptionStreams\HashingStream;
 use Pikulsky\EncryptedStreams\Cipher\WhatsAppCipherInterface;
-use Pikulsky\EncryptedStreams\Stream\WhatsAppStream;
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
 
